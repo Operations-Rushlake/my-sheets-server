@@ -1,0 +1,21 @@
+{
+  "name": "google-sheets-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Google Sheets automation",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.19.1",
+    "dotenv": "^17.2.3",
+    "googleapis": "^144.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
+
+
