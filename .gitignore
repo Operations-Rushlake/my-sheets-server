@@ -1,0 +1,11 @@
+# Ignore dependencies
+node_modules/
+
+# Ignore env files
+.env
+
+# Ignore service account keys
+*.json
+
+# Ignore logs
+npm-debug.log*
