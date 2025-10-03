@@ -1,33 +1,104 @@
+// index.js
 import express from "express";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { GoogleAuth } from "google-auth-library";
 import { google } from "googleapis";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+app.use(express.json());
 
-// Google Sheets setup
-const auth = new GoogleAuth({
-  keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+// Load credentials
+const CREDENTIALS_PATH = process.env.CREDENTIALS_PATH || "/etc/secrets/typingmind.json";
+const SERVICE_ACCOUNT = process.env.SERVICE_ACCOUNT || "claude-mcp@typingmind-469110.iam.gserviceaccount.com";
+
+const auth = new google.auth.GoogleAuth({
+  keyFile: CREDENTIALS_PATH,
+  scopes: [
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/spreadsheets",
+  ],
 });
-const sheets = google.sheets({ version: "v4", auth });
 
-// Just a health check route for Render
+async function getSheets() {
+  const authClient = await auth.getClient();
+  return google.sheets({ version: "v4", auth: authClient });
+}
+
+async function getDrive() {
+  const authClient = await auth.getClient();
+  return google.drive({ version: "v3", auth: authClient });
+}
+
+// Routes
 app.get("/", (req, res) => {
   res.send("✅ Google Sheets MCP server is running");
 });
 
-// Example MCP function (list spreadsheets)
-app.get("/listSheets", async (req, res) => {
+// List Sheets
+app.get("/list_sheets", async (req, res) => {
   try {
-    // replace with real API call logic
-    res.json({ sheets: ["Sheet1", "Sheet2", "Sheet3"] });
+    const drive = await getDrive();
+    const response = await drive.files.list({
+      q: "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false",
+      fields: "files(id, name, modifiedTime)",
+      orderBy: "modifiedTime desc",
+      pageSize: 100,
+    });
+
+    const files = response.data.files || [];
+    res.json(files);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// Read Sheet
+app.post("/read_sheet", async (req, res) => {
+  try {
+    const { spreadsheetId, range } = req.body;
+    const sheets = await getSheets();
+    const response = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+    res.json(response.data.values || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Write Sheet
+app.post("/write_sheet", async (req, res) => {
+  try {
+    const { spreadsheetId, range, values } = req.body;
+    const sheets = await getSheets();
+    const response = await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range,
+      valueInputOption: "USER_ENTERED",
+      insertDataOption: "INSERT_ROWS",
+      resource: { values },
+    });
+    res.json(response.data.updates);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update Sheet
+app.post("/update_sheet", async (req, res) => {
+  try {
+    const { spreadsheetId, range, values } = req.body;
+    const sheets = await getSheets();
+    const response = await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range,
+      valueInputOption: "USER_ENTERED",
+      resource: { values },
+    });
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Start server
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`Google Sheets MCP server running on port ${PORT}`);
+  console.log(`🚀 Google Sheets MCP server running on port ${PORT}`);
 });
