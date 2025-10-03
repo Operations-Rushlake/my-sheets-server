@@ -4,6 +4,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { google } from "googleapis";
 import dotenv from "dotenv";
 dotenv.config();
+const app = express();
+const PORT = process.env.PORT || 3000;
 // Hardcode credentials
 // Load credentials from .env
 const CREDENTIALS_PATH = process.env.CREDENTIALS_PATH;
@@ -268,10 +270,6 @@ server.callTool = async (name, args) => {
 };
 
 // Start server
-async function run() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Google Sheets MCP server running");
-}
-
-run().catch(console.error);
+app.listen(PORT, () => {
+  console.log(`Google Sheets MCP server running on port ${PORT}`);
+});
