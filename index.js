@@ -80,22 +80,35 @@ app.post("/write_sheet", async (req, res) => {
   }
 });
 
-// Update Sheet
+// Update Sheet (Fixed for TypingMind)
 app.post("/update_sheet", async (req, res) => {
   try {
     const { spreadsheetId, range, values } = req.body;
     const sheets = await getSheets();
+
+    // If TypingMind sends "values" as a string, parse it safely
+    let parsedValues = values;
+    if (typeof values === "string") {
+      try {
+        parsedValues = JSON.parse(values);
+      } catch (err) {
+        return res.status(400).json({ error: "Invalid JSON in 'values' field" });
+      }
+    }
+
     const response = await sheets.spreadsheets.values.update({
       spreadsheetId,
       range,
       valueInputOption: "USER_ENTERED",
-      resource: { values },
+      resource: { values: parsedValues },
     });
+
     res.json(response.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Start server
 const PORT = process.env.PORT || 10000;
