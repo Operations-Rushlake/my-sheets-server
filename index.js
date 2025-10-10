@@ -110,8 +110,39 @@ app.post("/update_sheet", async (req, res) => {
 });
 
 
-// Start server
+
+// ============ ADD THE DEBUG ENDPOINT HERE ============
+// Debug endpoint - ADD THIS TO YOUR index.js
+app.post("/test_params", async (req, res) => {
+  // This endpoint just echoes back what it receives - no Google Sheets API calls
+  res.json({
+    success: true,
+    message: "Debug endpoint - showing what was received",
+    received_body: req.body,
+    spreadsheetId_details: {
+      value: req.body.spreadsheetId,
+      type: typeof req.body.spreadsheetId,
+      length: req.body.spreadsheetId ? req.body.spreadsheetId.length : 0,
+      has_quotes: req.body.spreadsheetId ? req.body.spreadsheetId.includes('"') : false,
+      has_spaces: req.body.spreadsheetId ? req.body.spreadsheetId.includes(' ') : false,
+      has_template: req.body.spreadsheetId ? req.body.spreadsheetId.includes('{{') : false
+    },
+    range_details: {
+      value: req.body.range,
+      type: typeof req.body.range
+    },
+    values_details: {
+      value: req.body.values,
+      type: typeof req.body.values,
+      stringified: JSON.stringify(req.body.values)
+    }
+  });
+});
+// ============ END OF DEBUG ENDPOINT ============
+
+// Start server (THIS SHOULD BE THE LAST THING IN YOUR FILE)
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🚀 Google Sheets MCP server running on port ${PORT}`);
 });
+
