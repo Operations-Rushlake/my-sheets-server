@@ -50,23 +50,33 @@ app.get("/list_sheets", async (req, res) => {
   }
 });
 // List Folder files
-app.post("/list_folder_files", async (req, res) => {
+app.get("/list_folder_files", async (req, res) => {
   try {
-    const { folderId } = req.body;
-    if (!folderId) return res.status(400).json({ error: "Missing folderId" });
+    const folderId = req.query.folderId;
+
+    if (!folderId) {
+      return res.status(400).json({ error: "Missing folderId query parameter" });
+    }
 
     const drive = await getDrive();
+
     const response = await drive.files.list({
-      q: `'${folderId}' in parents and trashed = false`,
+      q: `'${folderId}' in parents and trashed=false`,
       fields: "files(id, name, mimeType, modifiedTime)",
       orderBy: "modifiedTime desc",
     });
 
-    res.json({ files: response.data.files || [] });
+    res.json({
+      success: true,
+      folderId,
+      fileCount: response.data.files.length,
+      files: response.data.files,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // Read Sheet
 app.post("/read_sheet", async (req, res) => {
