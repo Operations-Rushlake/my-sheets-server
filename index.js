@@ -7,7 +7,7 @@ app.use(express.json());
 
 // Load credentials
 const CREDENTIALS_PATH = process.env.CREDENTIALS_PATH || "/etc/secrets/typingmind.json";
-const SERVICE_ACCOUNT = process.env.SERVICE_ACCOUNT || "claude-mcp@typingmind-469110.iam.gserviceaccount.com";
+const SERVICE_ACCOUNT = process.env.SERVICE_ACCOUNT;
 
 const auth = new google.auth.GoogleAuth({
   keyFile: CREDENTIALS_PATH,
@@ -45,6 +45,24 @@ app.get("/list_sheets", async (req, res) => {
 
     const files = response.data.files || [];
     res.json(files);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// List Folder files
+app.post("/list_folder_files", async (req, res) => {
+  try {
+    const { folderId } = req.body;
+    if (!folderId) return res.status(400).json({ error: "Missing folderId" });
+
+    const drive = await getDrive();
+    const response = await drive.files.list({
+      q: `'${folderId}' in parents and trashed = false`,
+      fields: "files(id, name, mimeType, modifiedTime)",
+      orderBy: "modifiedTime desc",
+    });
+
+    res.json({ files: response.data.files || [] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
