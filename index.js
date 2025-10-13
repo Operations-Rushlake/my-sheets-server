@@ -49,35 +49,31 @@ app.get("/list_sheets", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// List Folder files
-app.get("/list_folder_files", async (req, res) => {
+// List files in a specific Google Drive folder
+app.get("/list_folder", async (req, res) => {
   try {
     const folderId = req.query.folderId;
-
     if (!folderId) {
       return res.status(400).json({ error: "Missing folderId query parameter" });
     }
 
     const drive = await getDrive();
-
     const response = await drive.files.list({
       q: `'${folderId}' in parents and trashed=false`,
-      fields: "files(id, name, mimeType, modifiedTime)",
-      orderBy: "modifiedTime desc",
+      fields: "files(id, name, mimeType, modifiedTime, webViewLink)",
+      pageSize: 100,
     });
 
     res.json({
       success: true,
       folderId,
-      fileCount: response.data.files.length,
-      files: response.data.files,
+      fileCount: response.data.files?.length || 0,
+      files: response.data.files || [],
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
-
 // Read Sheet
 app.post("/read_sheet", async (req, res) => {
   try {
