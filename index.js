@@ -50,20 +50,19 @@ app.get("/list_sheets", async (req, res) => {
   }
 });
 // List files in a specific Google Drive folder
-app.get("/list_folder", async (req, res) => {
+// List files in a specific Google Drive folder (POST version)
+app.post("/list_folder", async (req, res) => {
   try {
-    const folderId = req.query.folderId;
+    const folderId = req.body.folderId;
     if (!folderId) {
-      return res.status(400).json({ error: "Missing folderId query parameter" });
+      return res.status(400).json({ error: "Missing folderId in request body" });
     }
-
     const drive = await getDrive();
     const response = await drive.files.list({
       q: `'${folderId}' in parents and trashed=false`,
       fields: "files(id, name, mimeType, modifiedTime, webViewLink)",
       pageSize: 100,
     });
-
     res.json({
       success: true,
       folderId,
