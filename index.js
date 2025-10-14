@@ -49,7 +49,159 @@ app.get("/list_sheets", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// List files in a specific Google Drive folder
+// Hardcoded endpoint for the specific Revenue Reports folder
+app.get("/list_revenue_folder", async (req, res) => {
+  try {
+    const drive = await getDrive();
+    const folderId = "1sw_89iwFMWbBUVvgNvr0HN8li6C1UQY4"; // Hardcoded Revenue Reports folder
+    
+    // Try multiple approaches to get the files
+    const results = {};
+    
+    // Approach 1: Standard query
+    try {
+      const response1 = await drive.files.list({
+        q: `'${folderId}' in parents and trashed=false`,
+        fields: "files(id, name, mimeType, modifiedTime, webViewLink, parents, permissions)",
+        pageSize: 100,
+      });
+      results.standard = {
+        count: response1.data.files?.length || 0,
+        files: response1.data.files || []
+      };
+    } catch (err) {
+      results.standard = { error: err.message };
+    }
+    
+    // Approach 2: With Shared Drive support
+    try {
+      const response2 = await drive.files.list({
+        q: `'${folderId}' in parents`,
+        fields: "files(id, name, mimeType, modifiedTime, webViewLink)",
+        pageSize: 100,
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+        corpora: 'allDrives'
+      });
+      results.withSharedDrives = {
+        count: response2.data.files?.length || 0,
+        files: response2.data.files || []
+      };
+    } catch (err) {
+      results.withSharedDrives = { error: err.message };
+    }
+    
+    // Approach 3: Search for specific spreadsheets we know exist
+    try {
+      const response3 = await drive.files.list({
+        q: `mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
+        fields: "files(id, name, parents)",
+        pageSize: 100,
+      });
+      
+      // Filter for files that have this folder as parent
+      const filesInFolder = response3.data.files?.filter(file => 
+        file.parents && file.parents.includes(folderId)
+      ) || [];
+      
+      results.spreadsheetsInFolder = {
+        count: filesInFolder.length,
+        files: filesInFolder
+      };
+    } catch (err) {
+      results.spreadsheetsInFolder = { error: err.message };
+    }
+    
+    // Approach 4: Get folder metadata first
+    try {
+      const folderMeta = await drive.files.get({
+        fileId: folderId,
+        fields: "id, name, mimeType, permissions, owners, sharingUser, ownedByMe, shared, capabilities"
+      });
+      results.folderMetadata = folderMeta.data;
+    } catch (err) {
+      results.folderMetadata = { error: err.message };
+    }
+    
+    // Approach 5: Try without trashed=false
+    try {
+      const response5 = await drive.files.list({
+        q: `'${folderId}' in parents`,
+        fields: "files(id, name, trashed)",
+        pageSize: 100,
+      });
+      results.withoutTrashedFilter = {
+        count: response5.data.files?.length || 0,
+        files: response5.data.files || []
+      };
+    } catch (err) {
+      results.withoutTrashedFilter = { error: err.message };
+    }
+    
+    res.json({
+      success: true,
+      folderId: folderId,
+      folderName: "Revenue Reports (Hardcoded)",
+      results: results,
+      summary: {
+        standardQuery: results.standard?.count || 0,
+        withSharedDrives: results.withSharedDrives?.count || 0,
+        spreadsheetsFound: results.spreadsheetsInFolder?.count || 0,
+        withoutTrashedFilter: results.withoutTrashedFilter?.count || 0
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Alternative: List all accessible spreadsheets and check their parents
+app.get("/find_revenue_sheets", async (req, res) => {
+  try {
+    const drive = await getDrive();
+    const targetFolderId = "1sw_89iwFMWbBUVvgNvr0HN8li6C1UQY4";
+    
+    // Get ALL spreadsheets the service account can see
+    const response = await drive.files.list({
+      q: "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false",
+      fields: "files(id, name, parents, modifiedTime, webViewLink)",
+      pageSize: 1000, // Get more files
+    });
+    
+    const allSheets = response.data.files || [];
+    
+    // Filter for ones in the target folder
+    const sheetsInTargetFolder = allSheets.filter(file => 
+      file.parents && file.parents.includes(targetFolderId)
+    );
+    
+    // Also show sheets without parents (might be shared individually)
+    const sheetsWithoutParents = allSheets.filter(file => 
+      !file.parents || file.parents.length === 0
+    );
+    
+    res.json({
+      success: true,
+      targetFolderId: targetFolderId,
+      totalAccessibleSheets: allSheets.length,
+      sheetsInTargetFolder: {
+        count: sheetsInTargetFolder.length,
+        files: sheetsInTargetFolder
+      },
+      sheetsWithoutParentInfo: {
+        count: sheetsWithoutParents.length,
+        files: sheetsWithoutParents.slice(0, 10) // Show first 10
+      },
+      sampleOfAllSheets: allSheets.slice(0, 5).map(f => ({
+        name: f.name,
+        id: f.id,
+        parents: f.parents
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 // List files in a specific Google Drive folder (POST version)
 app.post("/list_folder", async (req, res) => {
   try {
